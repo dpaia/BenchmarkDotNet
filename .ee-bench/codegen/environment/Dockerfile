@@ -33,15 +33,15 @@ RUN apt-get update && \
     rsync \
     && rm -rf /var/lib/apt/lists/*
 
-# Install mono-complete separately — multiple Mono postinst scripts crash under
-# QEMU emulation (SIGABRT in mono_thread_interruption_checkpoint). We divert
-# cert-sync so the ca-certificates hook doesn't crash, let the initial install
-# proceed despite postinst failures, then force-configure remaining packages.
+# Install mono-complete separately — Mono postinst scripts (cert-sync, gacutil)
+# crash under QEMU emulation. Divert cert-sync, tolerate postinst failures.
+# The core mono runtime/libs are installed fine; only GAC registration of
+# nunit policy DLLs fails, which is irrelevant for dotnet SDK builds.
 RUN dpkg-divert --local --rename --add /usr/bin/cert-sync && \
     ln -s /bin/true /usr/bin/cert-sync && \
     apt-get update && \
-    (apt-get install -y mono-complete || dpkg --configure -a --force-all) && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y mono-complete || true
+RUN rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update && apt-get install -y wget && \
     wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.0g-2ubuntu4_amd64.deb && \
