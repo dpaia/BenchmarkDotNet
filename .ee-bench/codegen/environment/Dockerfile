@@ -41,6 +41,8 @@ RUN dpkg-divert --local --rename --add /usr/bin/cert-sync && \
     ln -s /bin/true /usr/bin/cert-sync && \
     apt-get update && \
     apt-get install -y mono-complete || true
+# Force-configure broken nunit/mono packages so they don't poison future apt calls
+RUN dpkg --configure -a --force-all || true
 RUN rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update && apt-get install -y wget && \
