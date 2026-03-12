@@ -24,7 +24,6 @@ RUN apt-get update && \
     # Required for env
     libcurl4-gnutls-dev \
     libexpat1-dev \
-    mono-complete \
     # Required for installing Git
     zlib1g-dev \
     gettext \
@@ -33,6 +32,13 @@ RUN apt-get update && \
     libsecret-1-dev \
     rsync \
     && rm -rf /var/lib/apt/lists/*
+
+# Install mono-complete separately — cert-sync crashes under QEMU emulation
+# (SIGABRT in mono_thread_interruption_checkpoint). Stub it out before install.
+RUN printf '#!/bin/sh\nexit 0\n' > /usr/bin/cert-sync && chmod +x /usr/bin/cert-sync && \
+    apt-get update && \
+    apt-get install -y mono-complete && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update && apt-get install -y wget && \
     wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.0g-2ubuntu4_amd64.deb && \
