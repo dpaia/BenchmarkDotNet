@@ -24,6 +24,7 @@ RUN apt-get update && \
     # Required for env
     libcurl4-gnutls-dev \
     libexpat1-dev \
+    mono-complete \
     # Required for installing Git
     zlib1g-dev \
     gettext \
@@ -32,18 +33,6 @@ RUN apt-get update && \
     libsecret-1-dev \
     rsync \
     && rm -rf /var/lib/apt/lists/*
-
-# Install mono-complete separately — Mono postinst scripts (cert-sync, gacutil)
-# crash under QEMU emulation. Divert cert-sync, tolerate postinst failures.
-# The core mono runtime/libs are installed fine; only GAC registration of
-# nunit policy DLLs fails, which is irrelevant for dotnet SDK builds.
-RUN dpkg-divert --local --rename --add /usr/bin/cert-sync && \
-    ln -s /bin/true /usr/bin/cert-sync && \
-    apt-get update && \
-    apt-get install -y mono-complete || true
-# Force-configure broken nunit/mono packages so they don't poison future apt calls
-RUN dpkg --configure -a --force-all || true
-RUN rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update && apt-get install -y wget && \
     wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.0g-2ubuntu4_amd64.deb && \
