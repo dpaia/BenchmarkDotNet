@@ -34,8 +34,10 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # Install mono-complete separately — cert-sync crashes under QEMU emulation
-# (SIGABRT in mono_thread_interruption_checkpoint). Stub it out before install.
-RUN printf '#!/bin/sh\nexit 0\n' > /usr/bin/cert-sync && chmod +x /usr/bin/cert-sync && \
+# (SIGABRT in mono_thread_interruption_checkpoint). Use dpkg-divert so the
+# real cert-sync binary is diverted and our no-op stays in place during install.
+RUN dpkg-divert --local --rename --add /usr/bin/cert-sync && \
+    ln -s /bin/true /usr/bin/cert-sync && \
     apt-get update && \
     apt-get install -y mono-complete && \
     rm -rf /var/lib/apt/lists/*
