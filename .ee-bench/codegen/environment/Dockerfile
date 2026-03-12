@@ -33,13 +33,14 @@ RUN apt-get update && \
     rsync \
     && rm -rf /var/lib/apt/lists/*
 
-# Install mono-complete separately — cert-sync crashes under QEMU emulation
-# (SIGABRT in mono_thread_interruption_checkpoint). Use dpkg-divert so the
-# real cert-sync binary is diverted and our no-op stays in place during install.
+# Install mono-complete separately — multiple Mono postinst scripts crash under
+# QEMU emulation (SIGABRT in mono_thread_interruption_checkpoint). We divert
+# cert-sync so the ca-certificates hook doesn't crash, let the initial install
+# proceed despite postinst failures, then force-configure remaining packages.
 RUN dpkg-divert --local --rename --add /usr/bin/cert-sync && \
     ln -s /bin/true /usr/bin/cert-sync && \
     apt-get update && \
-    apt-get install -y mono-complete && \
+    (apt-get install -y mono-complete || dpkg --configure -a --force-all) && \
     rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update && apt-get install -y wget && \
