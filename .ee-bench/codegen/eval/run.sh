@@ -22,8 +22,8 @@ _run_tests() {
   mkdir -p "$ARTIFACTS_DIR"
 
   set +e
-  dotnet test {{ instance.test_framework_flag }} "{{ instance.test_project }}" \
-    --logger "{{ instance.test_logger }}" {{ instance.build_flags }} \
+  dotnet test --framework net5.0 "./tests/BenchmarkDotNet.Tests/BenchmarkDotNet.Tests.csproj" \
+    --logger "junit;LogFilePath=$ARTIFACTS_DIR/tests.log" -p:TreatWarningsAsErrors=false \
     > "/tmp/${label}_stdout.log" 2> "/tmp/${label}_stderr.log"
   set -e
 
