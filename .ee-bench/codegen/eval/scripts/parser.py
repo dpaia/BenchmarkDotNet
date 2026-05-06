@@ -34,6 +34,15 @@ def match_keys(name: str) -> list[str]:
     return sorted({name, canonical_name(name)})
 
 
+def _junit_testcase_outcome(testcase: ET.Element) -> str:
+    """Return lower-cased testcase outcome from common JUnit logger attrs."""
+    for attr in ("result", "status", "outcome"):
+        value = testcase.get(attr)
+        if value:
+            return value.strip().lower()
+    return ""
+
+
 def parse_junit_xml(root: ET.Element) -> list[dict]:
     """Parse JUnit XML format (<testsuites><testsuite><testcase>)."""
     methods = []
@@ -65,6 +74,7 @@ def parse_junit_xml(root: ET.Element) -> list[dict]:
             failure = tc.find("failure")
             error = tc.find("error")
             skipped = tc.find("skipped")
+            outcome = _junit_testcase_outcome(tc)
 
             if failure is not None:
                 entry["status"] = "failed"
@@ -76,11 +86,19 @@ def parse_junit_xml(root: ET.Element) -> list[dict]:
                 entry["type"] = "error"
                 entry["message"] = error.get("message", "")
                 entry["stacktrace"] = _truncate(error.text or "")
-            elif skipped is not None:
+            elif skipped is not None or outcome in {"skipped", "ignored", "notexecuted", "inconclusive"}:
                 entry["status"] = "skipped"
-                msg = skipped.get("message", "") or (skipped.text or "")
+                msg = ""
+                if skipped is not None:
+                    msg = skipped.get("message", "") or (skipped.text or "")
                 if msg:
                     entry["message"] = msg
+            elif outcome in {"failed", "failure"}:
+                entry["status"] = "failed"
+                entry["type"] = "assertion"
+            elif outcome == "error":
+                entry["status"] = "failed"
+                entry["type"] = "error"
             else:
                 entry["status"] = "passed"
 
