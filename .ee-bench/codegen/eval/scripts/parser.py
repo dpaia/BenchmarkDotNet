@@ -7,6 +7,8 @@ import sys
 import xml.etree.ElementTree as ET
 
 MAX_STACKTRACE = 4096
+XUNIT_SKIP_RE = re.compile(r"^\[xUnit\.net [^\]]+\]\s+(.+?)\s+\[SKIP\]\s*$")
+DOTNET_SKIPPED_RE = re.compile(r"^\s*Skipped\s+(.+?)\s+\[[^\]]+\]\s*$")
 
 
 def _truncate(text: str, limit: int = MAX_STACKTRACE) -> str:
@@ -183,6 +185,45 @@ def detect_and_parse(artifacts_dir: str) -> list[dict]:
     return methods
 
 
+def parse_dotnet_stdout(path: str) -> list[dict]:
+    """Parse skipped test names from dotnet/xUnit console output."""
+    methods = []
+    seen = set()
+    try:
+        with open(path) as f:
+            lines = f.readlines()
+    except FileNotFoundError:
+        return methods
+
+    for line in lines:
+        line = line.rstrip("\n")
+        match = XUNIT_SKIP_RE.match(line) or DOTNET_SKIPPED_RE.match(line)
+        if not match:
+            continue
+        name = match.group(1).strip()
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        methods.append({
+            "name": name,
+            "canonical_name": canonical_name(name),
+            "match_keys": match_keys(name),
+            "duration_seconds": 0.0,
+            "status": "skipped",
+        })
+    return methods
+
+
+def merge_console_methods(methods: list[dict], console_methods: list[dict]) -> list[dict]:
+    """Let console output override XML entries for statuses missing from logger XML."""
+    if not console_methods:
+        return methods
+    console_by_name = {m["name"]: m for m in console_methods}
+    merged = [m for m in methods if m.get("name") not in console_by_name]
+    merged.extend(console_by_name[name] for name in sorted(console_by_name))
+    return merged
+
+
 def aggregate(methods: list[dict]) -> dict:
     """Build method-level aggregation and summary from parsed results."""
     passed_entries = []
@@ -232,6 +273,8 @@ def main():
 
     artifacts_dir = sys.argv[1]
     methods = detect_and_parse(artifacts_dir)
+    for stdout_path in sys.argv[2:]:
+        methods = merge_console_methods(methods, parse_dotnet_stdout(stdout_path))
     result = aggregate(methods)
     print(json.dumps(result))
 

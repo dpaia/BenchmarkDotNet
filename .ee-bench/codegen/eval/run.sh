@@ -29,7 +29,7 @@ _run_tests() {
   set -e
   echo "$test_exit" > "/tmp/${label}_exit_code"
 
-  python3 "$EVAL_DIR/scripts/parser.py" "$ARTIFACTS_DIR" > "/tmp/${label}_parser.json" 2>/dev/null || echo '{}' > "/tmp/${label}_parser.json"
+  python3 "$EVAL_DIR/scripts/parser.py" "$ARTIFACTS_DIR" "/tmp/${label}_stdout.log" > "/tmp/${label}_parser.json" 2>/dev/null || echo '{}' > "/tmp/${label}_parser.json"
 
   export ARTIFACTS_DIR="$orig_artifacts"
 }
